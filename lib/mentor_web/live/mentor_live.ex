@@ -28,6 +28,9 @@ defmodule MentorWeb.MentorLive do
           Submit
         </button>
       </form>
+      <div id="answer" class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
+        answer: <%= @answer %>
+      </div>
     </div>
     <div class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
       <h1 class="text-lg font-bold mb-2">Settings</h1>
@@ -35,7 +38,7 @@ defmodule MentorWeb.MentorLive do
         ollama REST API: <%= @endpoint %>
       </div>
       <div class="bg-gray-200">
-        ollama model: gemma:2b
+        ollama model: qwen2.5-coder:3b
       </div>
     </div>
     """
@@ -45,6 +48,7 @@ defmodule MentorWeb.MentorLive do
     socket =
       socket
       |> assign(:text, "")
+      |> assign(:answer, "")
       |> assign(:endpoint, Application.get_env(:mentor, :ollama_endpoint))
 
     {:ok, socket}
@@ -57,11 +61,38 @@ defmodule MentorWeb.MentorLive do
 
     {:ok, task} =
       Ollama.completion(Ollama.init(Application.get_env(:mentor, :ollama_endpoint)),
-        model: "gemma:2b",
+        model: "qwen2.5-coder:3b",
         prompt: prompt,
         stream: self()
       )
 
     {:noreply, assign(socket, current_request: task)}
+  end
+
+  def handle_info({_request_pid, {:data, _data}} = message, socket) do
+    pid = socket.assigns.current_request.pid
+
+    case message do
+      {^pid, {:data, %{"done" => false} = data}} ->
+        # Process each chunk of streaming data
+        # IO.puts("Processing chunk: #{inspect(data)}")
+        IO.puts(data["response"])
+
+      {^pid, {:data, %{"done" => true} = data}} ->
+        # Handle the final stream
+        IO.puts("Final streaming chunk received: #{inspect(data)}")
+
+      {_pid, _data} ->
+        # Unexpected message
+        IO.inspect("Unexpected message: #{message}")
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_info({ref, {:ok, resp}}, socket) do
+    IO.inspect("resp: #{resp["response"]}")
+    Process.demonitor(ref, [:flush])
+    {:noreply, assign(socket, current_request: nil, answer: resp["response"])}
   end
 end
