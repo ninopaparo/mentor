@@ -91,8 +91,13 @@ defmodule MentorWeb.MentorLive do
   end
 
   def handle_info({ref, {:ok, resp}}, socket) do
-    IO.inspect("resp: #{resp["response"]}")
+    answer = convert_to_markdown(resp["response"])
     Process.demonitor(ref, [:flush])
-    {:noreply, assign(socket, current_request: nil, answer: resp["response"])}
+    {:noreply, assign(socket, current_request: nil, answer: answer)}
+  end
+
+  # utility functions
+  defp convert_to_markdown(text) do
+    String.trim(text) |> Earmark.as_html!() |> Phoenix.HTML.raw()
   end
 end

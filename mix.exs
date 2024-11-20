@@ -59,7 +59,8 @@ defmodule Mentor.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:ollama, "0.7.1"}
+      {:ollama, "0.7.1"},
+      {:earmark, "~> 1.4"}
     ]
   end
 
