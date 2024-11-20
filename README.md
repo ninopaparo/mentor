@@ -20,4 +20,4 @@ This project is part of [Hack Week 24](https://hackweek.opensuse.org/projects/le
 
 - [x] Integrate with ollama
 - [x] Render Markdown
-- [ ] Select LLMs
+- [x] Select LLMs

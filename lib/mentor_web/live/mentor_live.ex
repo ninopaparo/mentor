@@ -8,7 +8,7 @@ defmodule MentorWeb.MentorLive do
     <div class="relative isolate px-6 pt-10 lg:px-8">
       <div>
         <div class="text-center">
-          <h1 class="text-4xl font-bold text-gray-900 dark:text-slate-100 sm:text-6xl">
+          <h1 class="text-4xl font-bold text-gray-900 sm:text-6xl">
             Mentor
           </h1>
         </div>
@@ -24,12 +24,17 @@ defmodule MentorWeb.MentorLive do
           class="block w-full "
           placeholder="Please enter your question"
         />
+        <select name="model_id" id="model_id">
+          <%= for model <- @available_models do %>
+            <option value={model} selected><%= model %></option>
+          <% end %>
+        </select>
         <button class="bg-green-400 hover:bg-green-500btext-white font-bold py-2 rounded">
           Submit
         </button>
       </form>
       <div id="answer" class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
-        answer: <%= @answer %>
+        <%= @answer %>
       </div>
     </div>
     <div class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
@@ -38,7 +43,7 @@ defmodule MentorWeb.MentorLive do
         ollama REST API: <%= @endpoint %>
       </div>
       <div class="bg-gray-200">
-        ollama model: qwen2.5-coder:3b
+        ollama model: <%= @current_model %>
       </div>
     </div>
     """
@@ -50,23 +55,25 @@ defmodule MentorWeb.MentorLive do
       |> assign(:text, "")
       |> assign(:answer, "")
       |> assign(:endpoint, Application.get_env(:mentor, :ollama_endpoint))
+      |> assign(:current_model, "")
+      |> assign(:available_models, list_available_models())
 
     {:ok, socket}
   end
 
   # When the client invokes the "submit" event, create a streaming request and
   # asynchronously send messages back to self.
-  def handle_event("submit", %{"prompt" => prompt}, socket) do
+  def handle_event("submit", %{"prompt" => prompt, "model_id" => model_id}, socket) do
     IO.inspect(prompt)
 
     {:ok, task} =
       Ollama.completion(Ollama.init(Application.get_env(:mentor, :ollama_endpoint)),
-        model: "qwen2.5-coder:3b",
+        model: model_id,
         prompt: prompt,
         stream: self()
       )
 
-    {:noreply, assign(socket, current_request: task)}
+    {:noreply, assign(socket, current_request: task, current_model: model_id)}
   end
 
   def handle_info({_request_pid, {:data, _data}} = message, socket) do
@@ -75,7 +82,6 @@ defmodule MentorWeb.MentorLive do
     case message do
       {^pid, {:data, %{"done" => false} = data}} ->
         # Process each chunk of streaming data
-        # IO.puts("Processing chunk: #{inspect(data)}")
         IO.puts(data["response"])
 
       {^pid, {:data, %{"done" => true} = data}} ->
@@ -97,6 +103,12 @@ defmodule MentorWeb.MentorLive do
   end
 
   # utility functions
+  def list_available_models() do
+    client = Ollama.init(Application.get_env(:mentor, :ollama_endpoint))
+    {:ok, models} = Ollama.list_models(client)
+    Enum.map(models["models"], &Map.get(&1, "model"))
+  end
+
   defp convert_to_markdown(text) do
     String.trim(text) |> Earmark.as_html!() |> Phoenix.HTML.raw()
   end
