@@ -1,5 +1,6 @@
 defmodule MentorWeb.MentorLive do
   use MentorWeb, :live_view
+  attr :current_model, :string, default: ""
 
   def render(assigns) do
     ~H"""
@@ -16,7 +17,7 @@ defmodule MentorWeb.MentorLive do
     </div>
     <div class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
       <h1 class="text-lg font-bold mb-2">Welcome</h1>
-      <form phx-submit="submit" id="prompt-form" class="flex flex-col gap-4">
+      <form phx-submit="submit" phx-change="select" id="prompt-form" class="flex flex-col gap-4">
         <input
           type="text"
           name="prompt"
@@ -34,6 +35,9 @@ defmodule MentorWeb.MentorLive do
         </button>
       </form>
       <div id="answer" class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
+        <%= if @loading do %>
+          Please wait...
+        <% end %>
         <%= @answer %>
       </div>
     </div>
@@ -52,20 +56,24 @@ defmodule MentorWeb.MentorLive do
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:text, "")
       |> assign(:answer, "")
       |> assign(:endpoint, Application.get_env(:mentor, :ollama_endpoint))
-      |> assign(:current_model, "")
       |> assign(:available_models, list_available_models())
+      |> assign(:loading, false)
 
     {:ok, socket}
   end
 
-  # When the client invokes the "submit" event, create a streaming request and
-  # asynchronously send messages back to self.
-  def handle_event("submit", %{"prompt" => prompt, "model_id" => model_id}, socket) do
-    IO.inspect(prompt)
+  def handle_event("select", %{"model_id" => model_id}, socket) do
+    {:noreply, assign(socket, :current_model, model_id)}
+  end
 
+  def handle_event("submit", %{"prompt" => prompt, "model_id" => model_id}, socket) do
+    send(self(), {:exec_query, prompt, model_id})
+    {:noreply, assign(socket, loading: true, answer: "")}
+  end
+
+  def handle_info({:exec_query, prompt, model_id}, socket) do
     {:ok, task} =
       Ollama.completion(Ollama.init(Application.get_env(:mentor, :ollama_endpoint)),
         model: model_id,
@@ -73,7 +81,12 @@ defmodule MentorWeb.MentorLive do
         stream: self()
       )
 
-    {:noreply, assign(socket, current_request: task, current_model: model_id)}
+    socket =
+      socket
+      |> assign(:current_request, task)
+      |> assign(:current_model, model_id)
+
+    {:noreply, socket}
   end
 
   def handle_info({_request_pid, {:data, _data}} = message, socket) do
@@ -99,7 +112,7 @@ defmodule MentorWeb.MentorLive do
   def handle_info({ref, {:ok, resp}}, socket) do
     answer = convert_to_markdown(resp["response"])
     Process.demonitor(ref, [:flush])
-    {:noreply, assign(socket, current_request: nil, answer: answer)}
+    {:noreply, assign(socket, current_request: nil, answer: answer, loading: false)}
   end
 
   # utility functions
