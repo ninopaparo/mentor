@@ -36,7 +36,7 @@ defmodule MentorWeb.MentorLive do
       </form>
       <div id="answer" class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
         <%= if @loading do %>
-          Please wait...
+          Please wait... <.icon name="hero-arrow-path" class="ml-1 h-3 w-3 animate-spin" />
         <% end %>
         <%= @answer %>
       </div>
