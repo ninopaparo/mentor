@@ -44,10 +44,17 @@ defmodule MentorWeb.MentorLive do
     <div class="max-w-3xl mx-auto p-4 bg-white rounded shadow-md">
       <h1 class="text-lg font-bold mb-2">Settings</h1>
       <div class="bg-gray-200">
-        ollama REST API: <%= @endpoint %>
+        <%= if @endpoint do %>
+          ollama API : <%= @endpoint %>
+        <% end %>
+        <%= if !@endpoint do %>
+          ollama is running on localhost
+        <% end %>
       </div>
       <div class="bg-gray-200">
-        ollama model: <%= @current_model %>
+        <%= if @current_model != "" do %>
+          ollama model: <%= @current_model %>
+        <% end %>
       </div>
     </div>
     """
@@ -74,8 +81,10 @@ defmodule MentorWeb.MentorLive do
   end
 
   def handle_info({:exec_query, prompt, model_id}, socket) do
+    client = create_ollama_client()
+
     {:ok, task} =
-      Ollama.completion(Ollama.init(Application.get_env(:mentor, :ollama_endpoint)),
+      Ollama.completion(client,
         model: model_id,
         prompt: prompt,
         stream: self()
@@ -116,8 +125,18 @@ defmodule MentorWeb.MentorLive do
   end
 
   # utility functions
+  defp create_ollama_client() do
+    case Application.get_env(:mentor, :ollama_endpoint) do
+      nil ->
+        Ollama.init()
+
+      _ ->
+        Ollama.init(Application.get_env(:mentor, :ollama_endpoint))
+    end
+  end
+
   def list_available_models() do
-    client = Ollama.init(Application.get_env(:mentor, :ollama_endpoint))
+    client = create_ollama_client()
     {:ok, models} = Ollama.list_models(client)
     Enum.map(models["models"], &Map.get(&1, "model"))
   end

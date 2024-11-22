@@ -10,10 +10,12 @@ This project is part of [Hack Week 24](https://hackweek.opensuse.org/projects/le
 - [Phoenix Framework](https://www.phoenixframework.org/)
 - [Ollama](https://ollama.com/)
 
-### Usage - development
+### How to setup the development environment
 
-- Create an `.env` file and update the `OLLAMA_API_ENDPOINT=` with the base URL of the `ollama` server
-- Run `source .env` and `mix phx.server`
+- clone the [mentor](https://github.com/ninopaparo/mentor) project
+- cd into the `mentor` directory
+- run `mix deps.get` and `iex -S mix phx.server`
+  - _optional_ To leverage a remote _ollama_ instance, please create an `.env` file and update the `OLLAMA_API_ENDPOINT=` variable and run `source .env`
 - Open `http://127.0.0.1:4000/`
 
 ### Features
@@ -21,3 +23,4 @@ This project is part of [Hack Week 24](https://hackweek.opensuse.org/projects/le
 - [x] Integrate with ollama
 - [x] Render Markdown
 - [x] Select LLMs
+- [ ] Retrieval Augmented Generation (RAG)
